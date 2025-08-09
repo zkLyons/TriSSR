@@ -12,15 +12,14 @@
 ### Enviroment Requirement
 你可以参考environment.yaml中的环境进行配置。
 
+## about dataset
+创建dataset文件夹，数据集地址[dataset](https://drive.google.com/drive/folders/1so0lckI6N6_niVEYaBu-LIcpOdZf99kj)
 ### Implement
 下面是TriSSR使用beauty数据集进行训练测试的指令实例：
 
 ```shell
 python main.py
 ```
-## Citation
-
-
 
 ## Acknowledgment
 
