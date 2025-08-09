@@ -4,13 +4,13 @@ from torch import nn
 from mamba_ssm import Mamba2
 from recbole.model.abstract_recommender import SequentialRecommender
 import torch.nn.functional as F
-from s5 import S5, S5Block
+# from s5 import S5, S5Block
 import math
 
 
-class SSD4Rec(SequentialRecommender):
+class TriSSR(SequentialRecommender):
     def __init__(self, config, dataset):
-        super(SSD4Rec, self).__init__(config, dataset)
+        super(TriSSR, self).__init__(config, dataset)
 
         self.hidden_size = config["hidden_size"] 
         self.num_layers = config["num_layers"]   
@@ -149,10 +149,10 @@ class BiSSDLayer(nn.Module):
         #滤波层
         self.Fc=FrequencyLayer(d_model=d_model)
 
-        self.ffn = FeedForward(d_model=d_model, inner_size=d_model*4, dropout=dropout)
+        # self.ffn = FeedForward(d_model=d_model, inner_size=d_model*4, dropout=dropout)
         self.inner_size=d_model*4
         self.timefourier=TimeFourier(d_model)
-        self.tri_expert = TriExpertFusion(d_model)
+        # self.tri_expert = TriExpertFusion(d_model)
         
     def forward(self, item_emb, item_idx, flip_index,time_diff):
         out_pass=self.Fc(item_emb)
@@ -164,10 +164,10 @@ class BiSSDLayer(nn.Module):
         backward_hidden_state = self.forward_ssd(filp_emb, seq_idx=item_idx)
         # backward_hidden_state=backward_hidden_state[:,flip_index,:]
 
-        hidden_states = forward_hidden_state + backward_hidden_state * self.beta + item_emb
+        hidden_states = forward_hidden_state + backward_hidden_state * self.beta + item_emb+out_pass+time_out
                
-        out=self.tri_expert(out_pass,hidden_states,time_out)
-        hidden_states=out
+        # out=self.tri_expert(out_pass,hidden_states,time_out)
+        # hidden_states=out
 
         # SFC增强输出（低频基座+高频细节）
         # hidden_states=hidden_states+out_pass
@@ -195,58 +195,58 @@ class TimeFourier(nn.Module):
 
 
 
-class TriExpertFusion(nn.Module):
-    def __init__(self, d_model):
-        super().__init__()
-        self.freq_ffn  = FeedForward(d_model, d_model * 4)
-        self.mamba_ffn = FeedForward(d_model, d_model * 4)
-        self.time_ffn  = FeedForward(d_model, d_model * 4)
+# class TriExpertFusion(nn.Module):
+#     def __init__(self, d_model):
+#         super().__init__()
+#         self.freq_ffn  = FeedForward(d_model, d_model * 4)
+#         self.mamba_ffn = FeedForward(d_model, d_model * 4)
+#         self.time_ffn  = FeedForward(d_model, d_model * 4)
 
-        self.alpha_freq  = nn.Parameter(torch.tensor(1.0))
-        self.alpha_mamba = nn.Parameter(torch.tensor(1.0))
-        self.alpha_time  = nn.Parameter(torch.tensor(1.0))
+#         self.alpha_freq  = nn.Parameter(torch.tensor(1.0))
+#         self.alpha_mamba = nn.Parameter(torch.tensor(1.0))
+#         self.alpha_time  = nn.Parameter(torch.tensor(1.0))
 
-        self.fuse_proj = nn.Linear(3 * d_model, d_model)
-        self.LayerNorm = nn.LayerNorm(d_model)
+#         self.fuse_proj = nn.Linear(3 * d_model, d_model)
+#         self.LayerNorm = nn.LayerNorm(d_model)
 
-    def forward(self, freq_emb, mamba_emb,time_emb):
-        freq_out  = self.freq_ffn(freq_emb)
-        mamba_out = self.mamba_ffn(mamba_emb)
-        time_out  = self.time_ffn(time_emb)
+#     def forward(self, freq_emb, mamba_emb,time_emb):
+#         freq_out  = self.freq_ffn(freq_emb)
+#         mamba_out = self.mamba_ffn(mamba_emb)
+#         time_out  = self.time_ffn(time_emb)
 
-        # 加权拼接
-        fused = torch.cat((
-            self.alpha_freq  * freq_out,
-            self.alpha_mamba * mamba_out,
-            self.alpha_time  * time_out
-        ), dim=-1)
+#         # 加权拼接
+#         fused = torch.cat((
+#             self.alpha_freq  * freq_out,
+#             self.alpha_mamba * mamba_out,
+#             self.alpha_time  * time_out
+#         ), dim=-1)
 
-        # 降维并规范化
-        out = self.fuse_proj(fused)
-        out = self.LayerNorm(out)
-        return out
+#         # 降维并规范化
+#         out = self.fuse_proj(fused)
+#         out = self.LayerNorm(out)
+#         return out
 
-class FeedForward(nn.Module):
-    def __init__(self, d_model, inner_size, dropout=0.2):
-        super().__init__()
-        self.w_1 = nn.Linear(d_model, inner_size)
-        self.w_2 = nn.Linear(inner_size, d_model)
-        self.activation = nn.LeakyReLU()
-        self.LayerNorm = nn.LayerNorm(d_model, eps=1e-12)
-        self.dropout = nn.Dropout(dropout)
+# class FeedForward(nn.Module):
+#     def __init__(self, d_model, inner_size, dropout=0.2):
+#         super().__init__()
+#         self.w_1 = nn.Linear(d_model, inner_size)
+#         self.w_2 = nn.Linear(inner_size, d_model)
+#         self.activation = nn.LeakyReLU()
+#         self.LayerNorm = nn.LayerNorm(d_model, eps=1e-12)
+#         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, input_tensor):
-        # Feed-Forward Network
-        hidden_states = self.w_1(input_tensor)
-        hidden_states = self.activation(hidden_states)
-        hidden_states = self.dropout(hidden_states)
-        hidden_states = self.w_2(hidden_states)
+#     def forward(self, input_tensor):
+#         # Feed-Forward Network
+#         hidden_states = self.w_1(input_tensor)
+#         hidden_states = self.activation(hidden_states)
+#         hidden_states = self.dropout(hidden_states)
+#         hidden_states = self.w_2(hidden_states)
 
-        # residual connection
-        hidden_states = self.LayerNorm(hidden_states + input_tensor)
-        hidden_states = self.dropout(hidden_states)
+#         # residual connection
+#         hidden_states = self.LayerNorm(hidden_states + input_tensor)
+#         hidden_states = self.dropout(hidden_states)
 
-        return hidden_states
+#         return hidden_states
     
   
     # 频域滤波层
@@ -264,7 +264,7 @@ class FrequencyLayer(nn.Module):
             nn.Linear(d_model, d_model), nn.GELU(), nn.Dropout(dropout)
         )
         self.high_branch = nn.Sequential(
-            nn.Linear(d_model, d_model), nn.GELU(), nn.Dropout(dropout)
+            nn.Linear(d_model, d_model), Swish(), nn.Dropout(dropout)
         )
          # 可学习权重用于融合（通过 softmax 归一化）
         self.fuse_weights = nn.Parameter(torch.tensor([1.0, 1.0, 1.0]))
@@ -320,5 +320,13 @@ class FrequencyLayer(nn.Module):
         return fuse  # 返回融合结果 + 高频用于 loss
 
 
+
+class Swish(nn.Module):
+    def __init__(self, beta=1.0):
+        super(Swish, self).__init__()
+        self.beta = beta
+
+    def forward(self, x):
+        return x * torch.sigmoid(self.beta * x)
 
 
