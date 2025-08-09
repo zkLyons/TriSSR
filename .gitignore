@@ -6,4 +6,4 @@ saved/
 *.pyc
 .DS_Store
 runs/
-dataset/
+dataset/*
