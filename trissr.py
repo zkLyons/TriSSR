@@ -4,13 +4,12 @@ from torch import nn
 from mamba_ssm import Mamba2
 from recbole.model.abstract_recommender import SequentialRecommender
 import torch.nn.functional as F
-from s5 import S5, S5Block
 import math
 
 
-class SSD4Rec(SequentialRecommender):
+class TriSSR(SequentialRecommender):
     def __init__(self, config, dataset):
-        super(SSD4Rec, self).__init__(config, dataset)
+        super(TriSSR, self).__init__(config, dataset)
 
         self.hidden_size = config["hidden_size"] 
         self.num_layers = config["num_layers"]   
@@ -23,24 +22,13 @@ class SSD4Rec(SequentialRecommender):
         self.d_conv = config["d_conv"]  
         self.expand = config["expand"]  
         self.headdim = config['headdim']
-
-        #s5
-        # 最小时间间隔
-        self.dt_min = config["dt_min"]
-        # 最大时间间隔
-        self.dt_max = config["dt_max"]
-        # 状态宽度
-        self.d_P = config["d_P"]
-        # 隐藏层大小
-        self.d_H = config["d_H"]
-
         self.item_embedding = nn.Embedding(self.n_items, self.hidden_size)  # 0 -> mask_token
 
         self.LayerNorm = nn.LayerNorm(self.hidden_size, eps=1e-12)
         self.dropout = nn.Dropout(self.dropout_prob)
         
-        self.BiSSD_layers = nn.ModuleList([
-            BiSSDLayer(
+        self.TriSSR_layers = nn.ModuleList([
+            TriSSRLayer(
                 beta = self.beta,
                 d_model=self.hidden_size,  
                 d_state=self.d_state,      
@@ -49,10 +37,6 @@ class SSD4Rec(SequentialRecommender):
                 dropout=self.dropout_prob, 
                 num_layers=self.num_layers,
                 headdim = self.headdim,
-                dt_min=self.dt_min,
-                dt_max=self.dt_max,
-                d_P=self.d_P,
-                d_H=self.hidden_size,
             ) for _ in range(self.num_layers)
         ])
 
@@ -78,7 +62,7 @@ class SSD4Rec(SequentialRecommender):
             item_emb = self.LayerNorm(item_emb)
 
         for i in range(self.num_layers):
-            item_emb = self.BiSSD_layers[i](item_emb, item_idx, flip_index,time_diff)
+            item_emb = self.TriSSR_layers[i](item_emb, item_idx, flip_index,time_diff)
 
         # gather_last_token_output
         gather_index = cum_item_length - 1 # [B]
@@ -98,7 +82,6 @@ class SSD4Rec(SequentialRecommender):
 
         test_item_emb = self.item_embedding.weight # [item_num, hidden_size]
         logits = torch.matmul(seq_output, test_item_emb.transpose(0, 1)) # [B, item_num]
-
 
         loss = self.loss_fct(logits, pos_items)
         return loss
@@ -121,8 +104,8 @@ class SSD4Rec(SequentialRecommender):
 
     
 # 双向mamba2+FFN
-class BiSSDLayer(nn.Module):
-    def __init__(self, beta, d_model, d_state, d_conv, expand, dropout, num_layers, headdim, dt_min, dt_max, d_P, d_H):
+class TriSSRLayer(nn.Module):
+    def __init__(self, beta, d_model, d_state, d_conv, expand, dropout, num_layers, headdim):
         super().__init__()
         self.beta = beta
         # mamba2作为mamba的改进，加入了注意力机制，所以需要传入注意力头数。
@@ -136,13 +119,7 @@ class BiSSDLayer(nn.Module):
                 expand=expand,     #特征拓展因子
             )
         
-        # self.S5 = S5(
-        #         width=d_H,
-        #         state_width=d_P,
-        #         dt_min = dt_min,
-        #         dt_max =dt_max,
-        #         )  
-
+  
         self.LayerNorm = nn.LayerNorm(d_model, eps=1e-12)
        
         self.dropout = nn.Dropout(dropout)
@@ -155,32 +132,31 @@ class BiSSDLayer(nn.Module):
         self.tri_expert = TriExpertFusion(d_model)
         
     def forward(self, item_emb, item_idx, flip_index,time_diff):
+        # frequency module
         out_pass=self.Fc(item_emb)
+        # time module
         time_out=self.timefourier(time_diff)
-         # forward ssd
+        #  forward ssd
         forward_hidden_state = self.forward_ssd(item_emb, seq_idx=item_idx)
         # backward ssd
         filp_emb = item_emb[:, flip_index, :]
         backward_hidden_state = self.forward_ssd(filp_emb, seq_idx=item_idx)
-        # backward_hidden_state=backward_hidden_state[:,flip_index,:]
 
         hidden_states = forward_hidden_state + backward_hidden_state * self.beta + item_emb
                
         out=self.tri_expert(out_pass,hidden_states,time_out)
-        hidden_states=out
+    
 
-        # SFC增强输出（低频基座+高频细节）
-        # hidden_states=hidden_states+out_pass
-        # hidden_states = self.LayerNorm(hidden_states)
-        # hidden_states = self.dropout(hidden_states)
-        # hidden_states = self.ffn(hidden_states)
-
-        return hidden_states
+        return out
 class TimeFourier(nn.Module):
     def __init__(self, hidden_size, max_freq=10.0, num_bands=16):
         super().__init__()
         # 生成 num_bands 个频率，log-space 分布
+        # 生成从1-10的16的等间隔的点。
+        # 这样做是为了生成一组呈指数增长的频率（例如 1, 10, 100... 如果 max_freq 很大），而不是线性增长的频率。这种对数间隔的频率分布在时间编码中很常见，因为它允许模型同时捕获短期（高频）和长期（低频）的时间模式
+
         freqs = torch.logspace(0.0, math.log10(max_freq), num_bands)
+        # 将freqs注册为缓冲区，不需要使用梯度下降进行学习。
         self.register_buffer('freqs', freqs)  # [num_bands]
         self.proj = nn.Linear(2 * num_bands, hidden_size)
 
@@ -264,7 +240,7 @@ class FrequencyLayer(nn.Module):
             nn.Linear(d_model, d_model), nn.GELU(), nn.Dropout(dropout)
         )
         self.high_branch = nn.Sequential(
-            nn.Linear(d_model, d_model), nn.GELU(), nn.Dropout(dropout)
+            nn.Linear(d_model, d_model), Swish(), nn.Dropout(dropout)
         )
          # 可学习权重用于融合（通过 softmax 归一化）
         self.fuse_weights = nn.Parameter(torch.tensor([1.0, 1.0, 1.0]))
@@ -320,5 +296,11 @@ class FrequencyLayer(nn.Module):
         return fuse  # 返回融合结果 + 高频用于 loss
 
 
+class Swish(nn.Module):
+    def __init__(self, beta=1.0):
+        super(Swish, self).__init__()
+        self.beta = beta
 
+    def forward(self, x):
+        return x * torch.sigmoid(self.beta * x)
 

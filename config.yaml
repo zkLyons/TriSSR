@@ -28,23 +28,23 @@ d_P: 32
 # maskratio: 0.1
 # num_layers: 1                   # (int)2 Number of Bi-SSD layers.
 
-# amazon-beauty setting:
-# dataset: amazon-beauty
-# MAX_ITEM_LIST_LENGTH: 50        # 50 for amazon-beauty datasets
-# dropout_prob: 0.4               # (float) Dropout rate.
-# norm_embedding: False
-# beta: 0.1
-# maskratio: 0.2
-# num_layers: 1                  # (int) Number of Bi-SSD layers.
-
-# amazon-video-games setting:
-dataset: amazon-video-games
-MAX_ITEM_LIST_LENGTH: 50        # 50 for amazon-video-games datasets
+amazon-beauty setting:
+dataset: amazon-beauty
+MAX_ITEM_LIST_LENGTH: 50        # 50 for amazon-beauty datasets
 dropout_prob: 0.4               # (float) Dropout rate.
 norm_embedding: False
 beta: 0.1
-maskratio: 0.1
+maskratio: 0.2
 num_layers: 1                  # (int) Number of Bi-SSD layers.
+
+# amazon-video-games setting:
+# dataset: amazon-video-games
+# MAX_ITEM_LIST_LENGTH: 50        # 50 for amazon-video-games datasets
+# dropout_prob: 0.4               # (float) Dropout rate.
+# norm_embedding: False
+# beta: 0.1
+# maskratio: 0.1
+# num_layers: 1                  # (int) Number of Bi-SSD layers.
 
 # kuairand setting
 # dataset: kuairand
@@ -74,24 +74,6 @@ num_layers: 1                  # (int) Number of Bi-SSD layers.
 # maskratio: 0.1
 # num_layers: 1 
 
-
-# #lastfm setting:
-# dataset: lastfm
-# MAX_ITEM_LIST_LENGTH: 50        # 50 for lastfm datasets
-# dropout_prob: 0.4               # (float) Dropout rate.
-# norm_embedding: False
-# beta: 0.1
-# maskratio: 0.1
-# num_layers: 1 
-
-# steam setting:
-# dataset: steam
-# MAX_ITEM_LIST_LENGTH: 50        # 50 for steam datasets
-# dropout_prob: 0.4               # (float) Dropout rate.
-# norm_embedding: False
-# beta: 0.1
-# maskratio: 0.1
-# num_layers: 1 
 
 # # steam setting:
 # dataset: Toys
