@@ -5,5 +5,5 @@ saved/
 *.pth
 *.pyc
 .DS_Store
-
+runs/
 dataset/
