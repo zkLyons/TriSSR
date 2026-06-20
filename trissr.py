@@ -71,9 +71,7 @@ class TriSSR(SequentialRecommender):
         return seq_output
     
     def calculate_loss(self, item_id, item_id_list, cum_item_length, item_idx, flip_index,time_diff):
-        # item_id应该是每一个用户交互过的最后一个物品id[itemX,itemY,itemZ....]  [batch_size]数据集在创建的时候使用了滑动窗口,例如u1:[i1,i2,i3,i4,i5],划分后的序列为：,u1:[i1],u1:[i1,i2],u1:[i1,i2,i3],u1:[i1,i2,i3,i4],各对应的目标物品为[i2],[i3],[i4],[i5]
-        # item_id_list 应该是每个批次，用户交互的物品id列表拼接起来形成的，u1：[item1,item2,item3],u2:[item4,item5]...--->[item1,item2,item3,....item4,item5...]
-        # cum_item_length:表示该批次当中每个用户交互的物品的累加长度(假设物品的seq设置为50，u1交互了3个物品，所以为3，长度补到50，u2交互了2个，所以值为52)，[3,52]
+ 
         item_seq = item_id_list.unsqueeze(0)     # [1, cat_dim such as 13297]
         item_idx = item_idx.unsqueeze(0)
 
@@ -108,7 +106,7 @@ class TriSSRLayer(nn.Module):
     def __init__(self, beta, d_model, d_state, d_conv, expand, dropout, num_layers, headdim):
         super().__init__()
         self.beta = beta
-        # mamba2作为mamba的改进，加入了注意力机制，所以需要传入注意力头数。
+         
         self.num_layers = num_layers
         self.forward_ssd = Mamba2(
                 # This module uses roughly 3 * expand * d_model^2 parameters
@@ -151,18 +149,14 @@ class TriSSRLayer(nn.Module):
 class TimeFourier(nn.Module):
     def __init__(self, hidden_size, max_freq=10.0, num_bands=16):
         super().__init__()
-        # 生成 num_bands 个频率，log-space 分布
-        # 生成从1-10的16的等间隔的点。
-        # 这样做是为了生成一组呈指数增长的频率（例如 1, 10, 100... 如果 max_freq 很大），而不是线性增长的频率。这种对数间隔的频率分布在时间编码中很常见，因为它允许模型同时捕获短期（高频）和长期（低频）的时间模式
-
+ 
         freqs = torch.logspace(0.0, math.log10(max_freq), num_bands)
-        # 将freqs注册为缓冲区，不需要使用梯度下降进行学习。
+ 
         self.register_buffer('freqs', freqs)  # [num_bands]
         self.proj = nn.Linear(2 * num_bands, hidden_size)
 
     def forward(self, time_diff):
-        # time_diff: [B, L]
-        # 拓展维度： [B, L, num_bands]
+ 
         x = time_diff.unsqueeze(-1) * self.freqs  # 广播
         sin = torch.sin(x)
         cos = torch.cos(x)
@@ -242,11 +236,9 @@ class FrequencyLayer(nn.Module):
         self.high_branch = nn.Sequential(
             nn.Linear(d_model, d_model), Swish(), nn.Dropout(dropout)
         )
-         # 可学习权重用于融合（通过 softmax 归一化）
+   
         self.fuse_weights = nn.Parameter(torch.tensor([1.0, 1.0, 1.0]))
-         # 分频比例：可以调整（默认三等分）
-        # self.low_ratio = 0.2
-        # self.mid_ratio = 0.4
+ 
         self.low_ratio = nn.Parameter(torch.tensor(0.2))
         self.mid_ratio = nn.Parameter(torch.tensor(0.4))
         self.conv1d = nn.Conv1d(d_model, d_model, kernel_size=3,padding=1)
