@@ -1,63 +1,67 @@
+<p align="center">
+  <a href="./README.md"><strong>English</strong></a> | <a href="./README_zh.md"><strong>中文</strong></a>
+</p>
+
 # TriSSR: Tri-expert fusion in state space models for sequential recommendation
 
-## 项目结构
+## Project Structure
 
 ```
 TriSSR/
-├── main.py                  # 训练与评估入口脚本
-├── trissr.py                # 模型核心实现（TriSSR, TriSSRLayer, FrequencyLayer, TimeFourier, TriExpertFusion）
-├── custom_utils.py           # 自定义数据集 & DataLoader
-├── custom_trainer.py         # 自定义训练器（混合精度训练、评估逻辑、TensorBoard 日志）
-├── config.yaml               # 模型与训练超参数配置
-├── environment.yaml          # Conda 环境配置
+├── main.py                  # Entry point for training and evaluation
+├── trissr.py                # Core model implementation (TriSSR, TriSSRLayer, FrequencyLayer, TimeFourier, TriExpertFusion)
+├── custom_utils.py          # Custom dataset & DataLoader
+├── custom_trainer.py        # Custom trainer (mixed-precision training, evaluation logic, TensorBoard logging)
+├── config.yaml              # Model and training hyperparameter configuration
+├── environment.yaml         # Conda environment configuration
 ├── images/
-│   ├── model_architecture.pdf   # 模型架构图
-│   ├── frequency_picture.pdf    # 频域滤波原理图
-│   └── results.png              # 实验结果对比图
+│   ├── model_architecture.pdf   # Model architecture diagram
+│   ├── frequency_picture.pdf    # Frequency filtering schematic
+│   └── results.png              # Experimental results comparison
 └── README.md
 ```
 
 ---
 
-## 模型介绍
+## Model Overview
 
-### 整体架构
+### Architecture
 
-这是我们发布在Neurocomputing上的文章：[TriSSR: Tri-expert fusion in state space models for sequential recommendation](https://www.sciencedirect.com/science/article/abs/pii/S0925231226009707)
+This work is published in **Neurocomputing**: [TriSSR: Tri-expert fusion in state space models for sequential recommendation](https://www.sciencedirect.com/science/article/abs/pii/S0925231226009707)
 
 ![](./assets/model_architecture.png)
 
-## 论文简介
+## Paper Introduction
 
-**TriSSR** 是一种新颖的序列推荐模型，创新性地融合了三种互补的特征提取范式：
+**TriSSR** is a novel sequential recommendation model that innovatively integrates three complementary feature extraction paradigms:
 
-1. **状态空间模型（Mamba2）**：以双向方式建模用户行为序列的长短期依赖关系
-2. **频域滤波（Frequency Layer）**：在傅里叶频域对用户交互序列进行多波段（低/中/高频）分解与重构
-3. **时间编码（TimeFourier）**：利用傅里叶特征对用户行为的时间间隔进行显式建模
+1. **State Space Model (Mamba2)**: Models long- and short-term dependencies in user behavior sequences in a bidirectional manner
+2. **Frequency Domain Filtering (Frequency Layer)**: Decomposes user interaction sequences into multi-band (low/mid/high) components in the Fourier domain and reconstructs them
+3. **Time Encoding (TimeFourier)**: Explicitly models time intervals between user actions using Fourier features
 
-三路特征经由可学习的 **TriExpertFusion** 融合器加权聚合，最终在多个公开数据集上取得了优越的推荐性能。
+The three feature streams are adaptively aggregated via a learnable **TriExpertFusion** module, achieving superior recommendation performance across multiple public benchmarks.
 
-### 待解决的问题和解决方案
+### Challenges Addressed
 
-传统序列推荐模型面临以下挑战：
+Traditional sequential recommendation models face the following challenges:
 
-1.用户行为包含短期兴趣与长期偏好，在频域呈现不同模式，但是这种简单的二级划分显然无法很好的描述用户特征，需要进行更细粒度的研究。
+1. User behavior encompasses both short-term interests and long-term preferences, which manifest as different patterns in the frequency domain. A simple two-level division is insufficient to capture user characteristics — more fine-grained modeling is required.
 
-2.用户兴趣随着时间不断变化，需要引入时间间隔信息作为用户特征建模的补充。
+2. User interests evolve over time, making it necessary to incorporate time interval information as a complement to user feature modeling.
 
-3.RNN/CNN 在长序列中易出现梯度消失或感受野不足，自注意力机制具有强大的长序列建模能力，但是却面临着巨大的计算消耗瓶颈，引入了SSM模型，兼具序列建模能力和线性计算复杂度。
+3. RNN/CNN models suffer from gradient vanishing or limited receptive fields on long sequences. While self-attention offers strong long-sequence modeling capability, it faces a significant computational bottleneck. We introduce an SSM (State Space Model) that combines strong sequence modeling power with linear computational complexity.
 
-## 实验结果
+## Experimental Results
 
-![实验结果](images/results.png)
+![Experimental Results](images/results.png)
 
-模型在四个 Amazon 公开数据集上与多种基线模型进行对比，评估指标包括 **NDCG@10/20**、**MRR@10/20** 和 **Hit@10/20**。实验结果表明 TriSSR 在所有数据集上均取得了具有竞争力的性能。
+The model is evaluated on four public Amazon datasets against various baselines using **NDCG@10/20**, **MRR@10/20**, and **Hit@10/20** metrics. Experimental results show that TriSSR achieves competitive performance across all datasets.
 
 ---
 
-## 环境配置
+## Environment Setup
 
-通过 Conda 安装
+Install via Conda:
 
 ```bash
 git clone https://github.com/zkLyons/TriSSR.git
@@ -75,71 +79,71 @@ All experiments are conducted on an NVIDIA 24GB 3090 GPU. The main required pack
 - RecBole 1.2.0
 - causal-conv1d 1.4.0
 
-### Datesets
+### Datasets
 
-我们使用了四个公开数据集，分别是Amazon-Beauty，Amazon-Video-Games，Amazon-Sports和Amazon-Toys，这些数据集你可以从以下链接中下载：[Google Drive](https://drive.google.com/drive/folders/1jsF4n1dge4KgdfD8HKxNjOcyHUKdEHka)
+We use four public datasets: Amazon-Beauty, Amazon-Video-Games, Amazon-Sports, and Amazon-Toys. These datasets can be downloaded from the following link: [Google Drive](https://drive.google.com/drive/folders/1jsF4n1dge4KgdfD8HKxNjOcyHUKdEHka)
 
-设置步骤如下：
+Setup steps:
 
-1. 创建 `dataset` 文件夹
-2. 下载数据集：[Google Drive](https://drive.google.com/drive/folders/1so0lckI6N6_niVEYaBu-LIcpOdZf99kj)
-3. 将数据文件放入 `dataset/` 目录下
+1. Create a `dataset` folder
+2. Download the datasets from: [Google Drive](https://drive.google.com/drive/folders/1so0lckI6N6_niVEYaBu-LIcpOdZf99kj)
+3. Place the data files into the `dataset/` directory
 
-数据集格式遵循 RecBole 的 Atomic File 格式（`.inter` 文件），包含 `user_id`、`item_id`、`timestamp` 三个主要字段。
+The datasets follow RecBole's Atomic File format (`.inter` files), containing three main fields: `user_id`, `item_id`, and `timestamp`.
 
 ---
 
-## 快速启动
+## Quick Start
 
-训练与评估
+Training and evaluation:
 
 ```bash
 python main.py
 ```
 
-### 配置说明
+### Configuration
 
-所有超参数在 `config.yaml` 中配置，主要包括：
+All hyperparameters are configured in `config.yaml`. Key parameters include:
 
-| 参数                   | 说明             | 默认值 |
-| ---------------------- | ---------------- | ------ |
-| `hidden_size`          | 特征维度         | 256    |
-| `d_state`              | SSM 状态扩展维度 | 64     |
-| `d_conv`               | 局部卷积宽度     | 4      |
-| `expand`               | 块扩展因子       | 2      |
-| `num_layers`           | TriSSR 层数      | 1      |
-| `dropout_prob`         | Dropout 概率     | 0.4    |
-| `beta`                 | 反向 Mamba 权重  | 0.1    |
-| `maskratio`            | 序列掩码比例     | 0.2    |
-| `learning_rate`        | 学习率           | 0.0001 |
-| `train_batch_size`     | 训练批次大小     | 1024   |
-| `MAX_ITEM_LIST_LENGTH` | 最大序列长度     | 50     |
+| Parameter             | Description                         | Default |
+| --------------------- | ----------------------------------- | ------- |
+| `hidden_size`         | Feature dimension                   | 256     |
+| `d_state`             | SSM state expansion dimension       | 64      |
+| `d_conv`              | Local convolution width             | 4       |
+| `expand`              | Block expansion factor              | 2       |
+| `num_layers`          | Number of TriSSR layers             | 1       |
+| `dropout_prob`        | Dropout probability                 | 0.4     |
+| `beta`                | Backward Mamba weight               | 0.1     |
+| `maskratio`           | Sequence masking ratio              | 0.2     |
+| `learning_rate`       | Learning rate                       | 0.0001  |
+| `train_batch_size`    | Training batch size                 | 1024    |
+| `MAX_ITEM_LIST_LENGTH`| Maximum sequence length             | 50      |
 
-切换数据集时，修改 `config.yaml` 中对应的数据集配置块，取消注释并注释其他数据集即可。
+To switch datasets, modify the corresponding dataset configuration block in `config.yaml` by uncommenting the desired dataset and commenting out the others.
 
-## 致谢
+## Acknowledgment
 
-本项目基于以下优秀开源工作构建，在此表示衷心感谢：
+This project is built upon the following excellent open-source works, to which we extend our sincere gratitude:
 
 - [SSD4Rec: A Structured State Space Duality Model for Efficient Sequential Recommendation](https://dl.acm.org/doi/10.1145/3773038)
 
-- **Mamba / Mamba2**：[state-spaces/mamba](https://github.com/state-spaces/mamba) — 状态空间模型，为序列建模提供高效骨干网络
-- **RecBole**：[RUCAIBox/RecBole](https://github.com/RUCAIBox/RecBole) — 推荐系统统一框架，提供数据处理、评估等基础设施
+- **Mamba / Mamba2**: [state-spaces/mamba](https://github.com/state-spaces/mamba) — State space model providing an efficient backbone for sequence modeling
+- **RecBole**: [RUCAIBox/RecBole](https://github.com/RUCAIBox/RecBole) — Unified recommendation framework providing data processing, evaluation, and other infrastructure
 
 ---
 
-## 引用
+## Citation
 
-如果您在研究中使用了 TriSSR，请引用我们的论文：
+If you use TriSSR in your research, please cite our paper:
 
 ```
 @article{Zhang2026TriSSR,
   title={TriSSR: Tri-expert fusion in state space models for sequential recommendation},
-  author={Kang Zhang and Quan Wen and Yujian Huang and Yanmei Hu and Na Dong and Xiaomeng Yang andRuixing Huang},
+  author={Kang Zhang and Quan Wen and Yujian Huang and Yanmei Hu and Na Dong and Xiaomeng Yang and Ruixing Huang},
   journal={Neurocomputing},
   year={2026},
   volume={685},
   pages={133573},
-  url={https://www.sciencedirect.com/science/article/abs/pii/S0925231226009707 }
+  url={https://www.sciencedirect.com/science/article/abs/pii/S0925231226009707}
 }
 ```
