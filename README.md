@@ -9,6 +9,7 @@
 
 ```
 TriSSR/
+├── dataset
 ├── main.py                  # Entry point for training and evaluation
 ├── trissr.py                # Core model implementation (TriSSR, TriSSRLayer, FrequencyLayer, TimeFourier, TriExpertFusion)
 ├── custom_utils.py          # Custom dataset & DataLoader

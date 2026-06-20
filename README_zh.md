@@ -9,6 +9,7 @@
 
 ```
 TriSSR/
+├── dataset
 ├── main.py                  # 训练与评估入口脚本
 ├── trissr.py                # 模型核心实现（TriSSR, TriSSRLayer, FrequencyLayer, TimeFourier, TriExpertFusion）
 ├── custom_utils.py          # 自定义数据集 & DataLoader
