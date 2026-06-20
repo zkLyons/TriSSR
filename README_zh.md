@@ -53,7 +53,7 @@ TriSSR/
 
 ## 实验结果
 
-![实验结果](images/results.png)
+![实验结果](./assets/results.png)
 
 模型在四个 Amazon 公开数据集上与多种基线模型进行对比，评估指标包括 **NDCG@10/20**、**MRR@10/20** 和 **Hit@10/20**。实验结果表明 TriSSR 在所有数据集上均取得了具有竞争力的性能。
 
