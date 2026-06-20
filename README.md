@@ -53,7 +53,7 @@ Traditional sequential recommendation models face the following challenges:
 
 ## Experimental Results
 
-![Experimental Results](images/results.png)
+![Experimental Results](./assets/results.png)
 
 The model is evaluated on four public Amazon datasets against various baselines using **NDCG@10/20**, **MRR@10/20**, and **Hit@10/20** metrics. Experimental results show that TriSSR achieves competitive performance across all datasets.
 
@@ -105,19 +105,19 @@ python main.py
 
 All hyperparameters are configured in `config.yaml`. Key parameters include:
 
-| Parameter             | Description                         | Default |
-| --------------------- | ----------------------------------- | ------- |
-| `hidden_size`         | Feature dimension                   | 256     |
-| `d_state`             | SSM state expansion dimension       | 64      |
-| `d_conv`              | Local convolution width             | 4       |
-| `expand`              | Block expansion factor              | 2       |
-| `num_layers`          | Number of TriSSR layers             | 1       |
-| `dropout_prob`        | Dropout probability                 | 0.4     |
-| `beta`                | Backward Mamba weight               | 0.1     |
-| `maskratio`           | Sequence masking ratio              | 0.2     |
-| `learning_rate`       | Learning rate                       | 0.0001  |
-| `train_batch_size`    | Training batch size                 | 1024    |
-| `MAX_ITEM_LIST_LENGTH`| Maximum sequence length             | 50      |
+| Parameter              | Description                   | Default |
+| ---------------------- | ----------------------------- | ------- |
+| `hidden_size`          | Feature dimension             | 256     |
+| `d_state`              | SSM state expansion dimension | 64      |
+| `d_conv`               | Local convolution width       | 4       |
+| `expand`               | Block expansion factor        | 2       |
+| `num_layers`           | Number of TriSSR layers       | 1       |
+| `dropout_prob`         | Dropout probability           | 0.4     |
+| `beta`                 | Backward Mamba weight         | 0.1     |
+| `maskratio`            | Sequence masking ratio        | 0.2     |
+| `learning_rate`        | Learning rate                 | 0.0001  |
+| `train_batch_size`     | Training batch size           | 1024    |
+| `MAX_ITEM_LIST_LENGTH` | Maximum sequence length       | 50      |
 
 To switch datasets, modify the corresponding dataset configuration block in `config.yaml` by uncommenting the desired dataset and commenting out the others.
 
