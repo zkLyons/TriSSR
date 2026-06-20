@@ -45,8 +45,8 @@ num_layers: 1 # (int) Number of Bi-SSD layers.
 # maskratio: 0.01
 # num_layers: 1
 
-# # amazon-sports setting:
-# dataset: toys
+# # toys setting:
+# dataset: Toys
 # MAX_ITEM_LIST_LENGTH: 50
 # dropout_prob: 0.4               # (float) Dropout rate.
 # norm_embedding: False
