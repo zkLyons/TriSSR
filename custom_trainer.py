@@ -37,10 +37,7 @@ class TriSSRTrainer(Trainer):
         self.count=0
 
     def _train_epoch(self, train_data, epoch_idx, loss_func=None, show_progress=False):
-        # 清除---------
-        # torch.backends.cuda.cufft_plan_cache.clear()
-        # 清除---------
-
+ 
         self.model.train()
         # 使用模型自带的损失计算方法。
         loss_func = self.model.calculate_loss
@@ -59,12 +56,7 @@ class TriSSRTrainer(Trainer):
         training_time_per_epoch = 0
         # 创建梯度缩放器（用于混合精度训练）
         scaler = amp.GradScaler('cuda',enabled=self.enable_scaler)
-        # item_id:要预测的物品的id序列，一般是每个用户的最后一个交互物品(1024,)，数据集在创建的时候使用了滑动窗口,例如u1:[i1,i2,i3,i4,i5],划分后的序列为：,u1:[i1],u1:[i1,i2],u1:[i1,i2,i3],u1:[i1,i2,i3,i4],各对应的目标物品为[i2],[i3],[i4],[i5]
-        # item_id_list:(9539,)，用户交互过的物品序列，也就是除了最后一个物品的其他物品。
-        #cum_item_length:(9539,),item_id_list是拼接起来的，cum_item_length用来记录每个用户序列所交互的物品结束的位置。
-        # item_idx:(1024)用于查询embedding，因为用户的id可能不是连续的数字，甚至不是数字，但是embedding构建的数据表是从0开始一次递增的。表示对应的物品id
-        # flip_index:(9539,)反转列表，将每一个用户对应的物品序列进行反转，根据下标列表cum_item_length可u0和u1的物品范围是0-21,22-23
-        # 反转后的结果为：21-0,23-22
+ 
         for batch_idx, (item_id, item_id_list, cum_item_length, item_idx, flip_index,time_diff) in enumerate(iter_data):
             training_time_per_batch = time()
             item_id = item_id.to(self.device)
@@ -83,10 +75,6 @@ class TriSSRTrainer(Trainer):
             loss = losses
             total_loss = ( losses.item() if total_loss is None else total_loss + losses.item())
             self._check_nan(loss)
-            # ----
-            # self.writer.add_scalar('train_loss',loss.item(),batch_idx + epoch_idx * len(train_data))
-
-            # ----
             scaler.scale(loss + sync_loss).backward()
             if self.clip_grad_norm:
                 clip_grad_norm_(self.model.parameters(), **self.clip_grad_norm)
@@ -99,16 +87,13 @@ class TriSSRTrainer(Trainer):
 
             training_time_per_epoch += time() - training_time_per_batch
         print(f'training_time_per_epoch: {training_time_per_epoch}')
-
-        # self.tensorboard.add_scalars("loss", {"train_loss": total_loss/(batch_idx)}, self.count)
-
         return total_loss
     # 禁用梯度计算
     @torch.no_grad()
     def evaluate(self, eval_data, load_best_model=True, model_file=None, show_progress=False):
         if not eval_data:
             return
-        # 加载最佳模型，最后一轮测试的时候使用。
+ 
         if load_best_model:
             checkpoint_file = model_file or self.saved_model_file
             checkpoint = torch.load(checkpoint_file, map_location=self.device)
@@ -120,7 +105,7 @@ class TriSSRTrainer(Trainer):
             self.logger.info(message_output)
 
         self.model.eval()
-        # 评估模式？全排序vs负采样
+ 
         if isinstance(eval_data, FullSortEvalDataLoader):
             eval_func = self._full_sort_batch_eval
             if self.item_tensor is None:
@@ -155,21 +140,20 @@ class TriSSRTrainer(Trainer):
 
             num_sample += len(cum_item_length)
             inference_time_per_batch = time()
-            # 调用模型的评估函数，返回[Batch,total_item_num]
+   
             scores,valid_loss = eval_func(item_id_list, cum_item_length, item_idx, flip_index,positive_i,time_diff)
             inference_time += time() - inference_time_per_batch
-            
-            # 显示设备状态。
+ 
             if self.gpu_available and show_progress:
                 iter_data.set_postfix_str(
                     set_color("GPU RAM: " + get_gpu_usage(self.device), "yellow")
                 )
-                # 完成评估数据收集
+ 
             self.eval_collector.eval_batch_collect(scores, None, positive_u, positive_i)
 
         self.eval_collector.model_collect(self.model)
         struct = self.eval_collector.get_data_struct()
-        # 计算评估指标，hit@k,ndcg,mrr
+ 
         result = self.evaluator.evaluate(struct)
         self.tensorboard.add_scalar("Hit@10", result.get('hit@10'),self.count)
         self.tensorboard.add_scalar("Hit@20", result.get('hit@20'),self.count)
@@ -188,26 +172,14 @@ class TriSSRTrainer(Trainer):
         return result
     
     def _full_sort_batch_eval(self, item_id_list, cum_item_length, item_idx, flip_index,positive_i,time_diff):
-        # Note: interaction without item ids
-        # 返回的是一个全排序的分数矩阵，形状为 [B, item_num]，其中 B 是批次大小，item_num 是物品总数。对应每一个用户对所有物品的预测分数。
+ 
         scores,valid_loss = self.model.full_sort_predict(item_id_list, cum_item_length, item_idx, flip_index,positive_i,time_diff) # [B, item_num]
-        # 在此对scores的维度进行处理，使其符合预期形状。
         scores = scores.view(-1, self.tot_item_num)  # [B, item_num]
-        # 将第一个物品分数设置为无穷小，我觉得没什么必要
         scores[:, 0] = -np.inf # [B, item_num]
         return scores,valid_loss
     
     def log_topk_rank_histogram(writer, logits, pos_ids, global_step, K=10, tag='TopK_Rank_Hist'):
-        """
-        将正样本排名分布写入 TensorBoard 直方图
-        Args:
-            writer: SummaryWriter 实例
-            logits: [B, N_item]
-            pos_ids: [B]，正样本索引
-            global_step: 当前训练步数或 epoch
-            K: Top-K
-            tag: TensorBoard 日志的名字
-        """
+
         B, N = logits.size()
         ranks = []
         for i in range(B):
@@ -217,12 +189,8 @@ class TriSSRTrainer(Trainer):
             ranks.append(rank)
 
         ranks = np.array(ranks)
-
-        # 计算命中率
         hit_count = np.sum(ranks <= K)
         hit_rate = hit_count / B
         print(f"Step {global_step}: Hit@{K} = {hit_rate * 100:.2f}%")
-        # 写直方图
         writer.add_histogram(tag, ranks, global_step)
-        # 也可以写标量命中率
         writer.add_scalar(f'{tag}_Hit@{K}', hit_rate, global_step)

@@ -126,28 +126,11 @@ class TriSSRDataset(SequentialDataset):
         # 检查必要字段，用户id和时间戳
         self._check_field("uid_field", "time_field")
         max_item_list_len = self.config["MAX_ITEM_LIST_LENGTH"] # 200
-        # 按用户和时间排序（确保用户行为时序正确）,优先按照用户id，id相同按照时间排序，递增。
         self.sort(by=[self.uid_field, self.time_field], ascending=True)
         last_uid = None
         uid_list, item_list_index, target_index, item_list_length = [], [], [], []
         seq_start = 0
-        # - 用户 ID (`uid`)：`[1, 1, 1, 2, 2, 3, 3, 3, 3]`
-        # - 物品 ID (`iid`)：`[10, 11, 12, 20, 21, 30, 31, 32, 33]`
-        # 经过for循环后，结果如下：
-        # - last_uid = None`（用于记录上一个用户 ID）
-        # - `seq_start = 0`（用于记录当前用户序列的起始索引）
-        # - `uid_list = []`（存储每个用户的 ID）
-        # - `item_list_index = []`（存储每个用户的交互序列索引范围）
-        # - `target_index = []`（存储每个用户的预测目标位置）
-        # - `item_list_length = []`（存储每个用户的实际交互序列长度）
-        # 假如最大长度为3，var_len=false
-
-        # - `uid_list = [1, 1, 2, 3, 3, 3]
-        # - `item_list_index = [slice(0, 1, None), slice(0, 2, None), slice(3, 4, None), slice(5, 6, None), slice(5, 7, None), slice(5, 8, None)],仅仅表示索引，前闭后开（更新序列切片）
-        # - `target_index = [1, 2, 4, 6, 7, 8]
-        # - `item_list_length = [1, 2, 1, 1, 2, 3]
-        # 如何使用这些切片? inter_feat['iid'][item_list_index[0]]
-        # 表示物品交互值为：1：[10],1:[10,11],2:[20],3:[30],3:[30,31],3:[30,31,32]
+ 
         for i, uid in enumerate(self.inter_feat[self.uid_field].numpy()):
             if last_uid != uid:
                 last_uid = uid
@@ -164,17 +147,13 @@ class TriSSRDataset(SequentialDataset):
         item_list_index = np.array(item_list_index)
         target_index = np.array(target_index)
         item_list_length = np.array(item_list_length, dtype=np.int64)
-
-        # new_length = len(item_list_index)
-        # 获取目标位置样本值
+ 
         new_data = self.inter_feat[target_index]
-        # 创建基础的数据容器字典。
+ 
         new_dict = {
             self.item_list_length_field: torch.tensor(item_list_length),
         }
-        # 为除了id以外的其他字段创建列表字段，
-        #     new_data {'iid': [11, 12, 21, 31, 32, 33], 'item_list_length': tensor([1, 2, 1, 1, 2, 3]), 'list': array([list([10]), list([10, 11]), list([20]), list([30]), list([30, 31]),
-        #     list([30, 31, 32])], dtype=object)}
+   
         for field in self.inter_feat:
             if field != self.uid_field:
                 list_field = getattr(self, f"{field}_list_field")
@@ -186,14 +165,12 @@ class TriSSRDataset(SequentialDataset):
 
                 new_list = np.array(new_list, dtype=object)
                 new_dict[list_field] = new_list
-        # 用增强后的数据替换原始数据。
+         
         for k in new_dict:
             new_data[k] = new_dict[k]
 
         self.inter_feat = new_data
-
-# 拼接item_list,获取掩码，逆序索引
-# 在训练集上使用
+ 
 class TriSSRTrainDataLoader(TrainDataLoader):
     def __init__(self, config, dataset, sampler, shuffle=False):
         super().__init__(config, dataset, sampler, shuffle=shuffle)
@@ -201,53 +178,28 @@ class TriSSRTrainDataLoader(TrainDataLoader):
 
     def collate_fn(self, index):
         index = np.array(index)
-        # 获取批次数据。
-        data = self._dataset[index]
-        # item_id应该是每一个用户交互过的最后一个物品id[itemX,itemY,itemZ....]  [batch_size]数据集在创建的时候使用了滑动窗口,例如u1:[i1,i2,i3,i4,i5],划分后的序列为：
-        # ,u1:[i1],u1:[i1,i2],u1:[i1,i2,i3],u1:[i1,i2,i3,i4],各对应的目标物品为[i2],[i3],[i4],[i5]
+ 
         item_id_list = data.interaction['item_id_list']
         item_id = data.interaction['item_id']
         item_length = data.interaction['item_length']
         timestamp_list=data.interaction['timestamp_list']
         timestamp=data.interaction['timestamp']
-
-
-
-
-
-        # 时间戳拼接
-        # timestamp_list=torch.cat(list(timestamp_list),dim=0)
-
-
-        # [tensor([1, 2, 3, 4]), tensor([ 6,  7,  5, 34,  5])]
-       
-        # 将item_id_list中的每个tensor拼接成一个大的tensor，
-         # tensor([ 1,  2,  3,  4,  6,  7,  5, 34,  5])
+ 
         item_id_list = torch.cat(list(item_id_list), dim=0)
-        # torch.full((item_length[i], ), i, dtype=torch.int32) ：创建一个张张量，形状为(item_length[i],),使用i填充值
-        # tensor([0, 0, 0, 0, 1, 1, 1, 1, 1], dtype=torch.int32),用于表示item属于哪个用户。
+ 
         item_idx = torch.cat([torch.full((item_length[i], ), i, dtype=torch.int32) for i in range(len(item_length))], dim=0)
-        # 计算序列的累计长度，得到每一个交互序列的长度，也可以作为终止位置
-        # tensor([4, 9])
+ 
         cum_item_length = item_length.cumsum(dim=0) # rememeber to -1 latter
-
-        # mask_index
-        # 随机生成与item_id_list形状相同的数字张量，如果大于mask_ratio，那么值就为true，否则为false。
-        # tensor([ True,  True,  True,  True,  True,  True,  True,  True, False])
+ 
         mask_index = (torch.rand(item_id_list.shape) > self.mask_ratio)
-
-        # flip_index
-        # 生成倒序索引
-        # cum_item_length - 1: tensor([3, 8])
-        # flip_index = tensor([3, 2, 1, 0, 8, 7, 6, 5, 4])
-        # 用于后续的排序操作
+ 
         flip_index = []
         start = -1
         for end in cum_item_length - 1:
             flip_index += range(end,start,-1)
             start = end
         flip_index = torch.tensor(flip_index)
-        # tensor([ 1,  2,  3,  4,  6,  7,  5, 34,  0])
+ 
         item_id_list = item_id_list * mask_index
 
         # 计算时间戳。
@@ -264,8 +216,7 @@ class TriSSRTrainDataLoader(TrainDataLoader):
                 diff = torch.cat([inner_diff, last_diff.unsqueeze(0)], dim=0)  # [len]
 
             time_diff_list.append(diff)
-
-        # 拼接所有用户
+ 
         time_diff = torch.cat(time_diff_list, dim=0)
 
 
@@ -275,9 +226,7 @@ class TriSSRTrainDataLoader(TrainDataLoader):
 
 
         return item_id, item_id_list, cum_item_length, item_idx, flip_index,time_diff
-    
-# 全排列场景下，数据的处理方式。
-# 没有掩码操作，加入了用户索引和目标物品，分别用于将预测结果关联到具体用户​和计算评估指标​。在验证集和测试集上使用
+
 class TriSSRFullSortEvalDataLoader(FullSortEvalDataLoader):
     def __init__(self, config, dataset, sampler, shuffle=False):
         super().__init__(config, dataset, sampler, shuffle=shuffle)
@@ -296,19 +245,18 @@ class TriSSRFullSortEvalDataLoader(FullSortEvalDataLoader):
         item_length = data.interaction['item_length']
         timestamp_list=data.interaction['timestamp_list']
         timestamp=data.interaction['timestamp']
-        # 拼接，求每个用户的物品交互总数，获取物品所属用户索引。
+ 
         item_id_list = torch.cat(list(item_id_list), dim=0)
         cum_item_length = item_length.cumsum(dim=0) # rememeber to -1 latter
         item_idx = torch.cat([torch.full((item_length[i], ), i, dtype=torch.int32) for i in range(len(item_length))], dim=0)
 
-        # flip_index
+ 
         flip_index = []
         start = -1
         for end in cum_item_length - 1:
             flip_index += range(end,start,-1)
             start = end
         flip_index = torch.tensor(flip_index)
-               # 计算时间戳。
         time_diff_list = []
         for ts_list, t_target in zip(timestamp_list, timestamp):
             if ts_list.size(0) == 1:
