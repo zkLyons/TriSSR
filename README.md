@@ -3,6 +3,9 @@
   <a href="./README_zh.md"><img alt="简体中文版自述文件" src="https://img.shields.io/badge/简体中文-DFE0E5"></a>
 </p>
 
+![](https://komarev.com/ghpvc/?username=zkLyons&label=Views&color=yellow)
+
+
 # TriSSR: Tri-expert fusion in state space models for sequential recommendation
 
 ## Project Structure
